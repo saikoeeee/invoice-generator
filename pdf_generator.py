@@ -189,7 +189,8 @@ def generate_pdf(invoice_id):
         invoice["discount"]
     )
 
-    output_dir = os.path.join("static", "invoices")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(base_dir, "static", "invoices")
     os.makedirs(output_dir, exist_ok=True)
     filename = f"{invoice['invoice_number']}.pdf"
     filepath = os.path.join(output_dir, filename)

@@ -12,6 +12,12 @@ import config
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# Use absolute paths so the app works in any environment
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INVOICES_DIR = os.path.join(BASE_DIR, "static", "invoices")
+os.makedirs(INVOICES_DIR, exist_ok=True)
+
+
 @app.context_processor
 def inject_config():
     """Makes config available in all templates."""
@@ -22,9 +28,7 @@ def inject_config():
 
 @app.route("/")
 def index():
-    """Main dashboard showing invoice summary."""
     invoices = database.get_all_invoices()
-
     total_invoices = len(invoices)
     total_paid = sum(1 for inv in invoices if inv["status"] == "paid")
     total_unpaid = sum(1 for inv in invoices if inv["status"] == "unpaid")
@@ -44,14 +48,12 @@ def index():
 
 @app.route("/clients")
 def clients():
-    """Shows all clients."""
     all_clients = database.get_all_clients()
     return render_template("clients.html", clients=all_clients)
 
 
 @app.route("/clients/add", methods=["POST"])
 def add_client():
-    """Handles adding a new client."""
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
@@ -68,7 +70,6 @@ def add_client():
 
 @app.route("/clients/edit/<int:client_id>", methods=["POST"])
 def edit_client(client_id):
-    """Handles editing an existing client."""
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
@@ -85,7 +86,6 @@ def edit_client(client_id):
 
 @app.route("/clients/delete/<int:client_id>", methods=["POST"])
 def delete_client(client_id):
-    """Handles deleting a client."""
     client = database.get_client(client_id)
     if client:
         database.delete_client(client_id)
@@ -97,9 +97,7 @@ def delete_client(client_id):
 
 @app.route("/invoices/create")
 def create_invoice():
-    """Shows the create invoice form."""
     all_clients = database.get_all_clients()
-
     if not all_clients:
         flash("You need to add a client before creating an invoice.", "error")
         return redirect(url_for("clients"))
@@ -113,7 +111,6 @@ def create_invoice():
 
 @app.route("/invoices/create", methods=["POST"])
 def submit_invoice():
-    """Handles invoice form submission."""
     client_id = request.form.get("client_id")
     issue_date = request.form.get("issue_date")
     due_date = request.form.get("due_date")
@@ -121,7 +118,6 @@ def submit_invoice():
     discount = request.form.get("discount", 0)
     notes = request.form.get("notes", "").strip()
 
-    # Collect line items from form
     descriptions = request.form.getlist("description[]")
     quantities = request.form.getlist("quantity[]")
     unit_prices = request.form.getlist("unit_price[]")
@@ -130,7 +126,6 @@ def submit_invoice():
         flash("Client, issue date and due date are required.", "error")
         return redirect(url_for("create_invoice"))
 
-    # Filter out empty rows
     items = []
     for desc, qty, price in zip(descriptions, quantities, unit_prices):
         if desc.strip() and qty and price:
@@ -149,7 +144,6 @@ def submit_invoice():
             int(client_id), issue_date, due_date,
             float(tax_rate), float(discount), notes, items
         )
-        # Generate PDF immediately
         pdf_generator.generate_pdf(invoice_id)
         flash("Invoice created successfully.", "success")
         return redirect(url_for("invoice_detail", invoice_id=invoice_id))
@@ -160,9 +154,7 @@ def submit_invoice():
 
 @app.route("/invoices/<int:invoice_id>")
 def invoice_detail(invoice_id):
-    """Shows a single invoice with all details."""
     invoice = database.get_invoice(invoice_id)
-
     if not invoice:
         flash("Invoice not found.", "error")
         return redirect(url_for("index"))
@@ -185,11 +177,9 @@ def invoice_detail(invoice_id):
 
 @app.route("/invoices/<int:invoice_id>/status", methods=["POST"])
 def update_status(invoice_id):
-    """Updates the status of an invoice."""
     status = request.form.get("status")
     if status in ("paid", "unpaid", "overdue"):
         database.update_invoice_status(invoice_id, status)
-        # Regenerate PDF with updated status
         pdf_generator.generate_pdf(invoice_id)
         flash(f"Invoice marked as {status}.", "success")
     return redirect(url_for("invoice_detail", invoice_id=invoice_id))
@@ -197,15 +187,13 @@ def update_status(invoice_id):
 
 @app.route("/invoices/<int:invoice_id>/download")
 def download_invoice(invoice_id):
-    """Downloads the PDF for an invoice, regenerating it if needed."""
     invoice = database.get_invoice(invoice_id)
-
     if not invoice:
         flash("Invoice not found.", "error")
         return redirect(url_for("index"))
 
     filename = f"{invoice['invoice_number']}.pdf"
-    filepath = os.path.join("static", "invoices", filename)
+    filepath = os.path.join(INVOICES_DIR, filename)
 
     if not os.path.exists(filepath):
         pdf_generator.generate_pdf(invoice_id)
@@ -215,22 +203,17 @@ def download_invoice(invoice_id):
 
 @app.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
 def delete_invoice(invoice_id):
-    """Deletes an invoice and its PDF."""
     invoice = database.get_invoice(invoice_id)
-
     if invoice:
         filename = f"{invoice['invoice_number']}.pdf"
-        filepath = os.path.join("static", "invoices", filename)
+        filepath = os.path.join(INVOICES_DIR, filename)
         if os.path.exists(filepath):
             os.remove(filepath)
         database.delete_invoice(invoice_id)
         flash("Invoice deleted.", "success")
-
     return redirect(url_for("index"))
 
 
-# ── Entry Point ──────────────────────────────────────────────────
-
 if __name__ == "__main__":
     database.init_db()
-    app.run(debug=True)
+    app.run(debug=False)

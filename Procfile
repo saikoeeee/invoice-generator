@@ -1,0 +1,1 @@
+web: gunicorn app:apptype nul > runtime.txt
