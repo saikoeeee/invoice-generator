@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ invoice.invoice_number }} - Invoice Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div>
+                <h1>{{ config.BUSINESS_NAME }}</h1>
+                <p>Invoice Manager</p>
+            </div>
+            <nav>
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/clients" class="nav-link">Clients</a>
+                <a href="/invoices/create" class="btn btn-primary">+ New Invoice</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Invoice Header -->
+        <section class="card invoice-header-card">
+            <div class="invoice-header-row">
+                <div>
+                    <h2>{{ invoice.invoice_number }}</h2>
+                    <p class="text-grey">{{ invoice.client_name }}</p>
+                </div>
+                <div class="invoice-header-actions">
+                    <span class="badge badge-{{ invoice.status }} badge-lg">
+                        {{ invoice.status.upper() }}
+                    </span>
+                    <a href="/invoices/{{ invoice.id }}/download"
+                        class="btn btn-primary">
+                        Download PDF
+                    </a>
+                    <form action="/invoices/{{ invoice.id }}/delete"
+                        method="POST"
+                        onsubmit="return confirm('Delete this invoice?')">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <div class="detail-grid">
+
+            <!-- Left Column -->
+            <div class="detail-left">
+
+                <!-- Invoice Info -->
+                <section class="card">
+                    <h2>Invoice Details</h2>
+                    <div class="detail-list">
+                        <div class="detail-row">
+                            <span class="detail-label">Invoice Number</span>
+                            <span>{{ invoice.invoice_number }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Issue Date</span>
+                            <span>{{ invoice.issue_date }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Due Date</span>
+                            <span>{{ invoice.due_date }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tax Rate</span>
+                            <span>{{ invoice.tax_rate }}%</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Discount</span>
+                            <span>{{ invoice.discount }}%</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Client Info -->
+                <section class="card">
+                    <h2>Client Details</h2>
+                    <div class="detail-list">
+                        <div class="detail-row">
+                            <span class="detail-label">Name</span>
+                            <span>{{ invoice.client_name }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Email</span>
+                            <span>{{ invoice.client_email }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Address</span>
+                            <span>{{ invoice.client_address or "-" }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Phone</span>
+                            <span>{{ invoice.client_phone or "-" }}</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Update Status -->
+                <section class="card">
+                    <h2>Update Status</h2>
+                    <form action="/invoices/{{ invoice.id }}/status"
+                        method="POST" class="status-form">
+                        <select name="status">
+                            <option value="unpaid"
+                                {% if invoice.status == "unpaid" %}selected{% endif %}>
+                                Unpaid
+                            </option>
+                            <option value="paid"
+                                {% if invoice.status == "paid" %}selected{% endif %}>
+                                Paid
+                            </option>
+                            <option value="overdue"
+                                {% if invoice.status == "overdue" %}selected{% endif %}>
+                                Overdue
+                            </option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">
+                            Update
+                        </button>
+                    </form>
+                </section>
+
+            </div>
+
+            <!-- Right Column -->
+            <div class="detail-right">
+
+                <!-- Line Items -->
+                <section class="card">
+                    <h2>Line Items</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td>{{ item.description }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>${{ "%.2f"|format(item.unit_price) }}</td>
+                                    <td>${{ "%.2f"|format(item.quantity * item.unit_price) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <!-- Totals -->
+                    <div class="totals-block">
+                        <div class="total-row">
+                            <span>Subtotal</span>
+                            <span>${{ "%.2f"|format(totals.subtotal) }}</span>
+                        </div>
+                        {% if invoice.discount > 0 %}
+                            <div class="total-row">
+                                <span>Discount ({{ invoice.discount }}%)</span>
+                                <span>-${{ "%.2f"|format(totals.discount_amount) }}</span>
+                            </div>
+                        {% endif %}
+                        {% if invoice.tax_rate > 0 %}
+                            <div class="total-row">
+                                <span>Tax ({{ invoice.tax_rate }}%)</span>
+                                <span>${{ "%.2f"|format(totals.tax_amount) }}</span>
+                            </div>
+                        {% endif %}
+                        <div class="total-row total-grand">
+                            <span>Total Due</span>
+                            <span>${{ "%.2f"|format(totals.total) }}</span>
+                        </div>
+                    </div>
+                </section>
+
+                {% if invoice.notes %}
+                    <section class="card">
+                        <h2>Notes</h2>
+                        <p class="notes-text">{{ invoice.notes }}</p>
+                    </section>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clients - Invoice Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div>
+                <h1>{{ config.BUSINESS_NAME }}</h1>
+                <p>Invoice Manager</p>
+            </div>
+            <nav>
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/clients" class="nav-link active">Clients</a>
+                <a href="/invoices/create" class="btn btn-primary">+ New Invoice</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Add Client Form -->
+        <section class="card">
+            <h2>Add New Client</h2>
+            <form action="/clients/add" method="POST" class="add-form">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name"
+                        placeholder="e.g. John Smith" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email"
+                        placeholder="john@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" name="address"
+                        placeholder="e.g. 123 Main St, Singapore">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" name="phone"
+                        placeholder="e.g. +65 9123 4567">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Client</button>
+            </form>
+        </section>
+
+        <!-- Client List -->
+        <section class="card">
+            <h2>All Clients</h2>
+
+            {% if clients %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                            <th>Phone</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                            <tr>
+                                <td>{{ client.name }}</td>
+                                <td>{{ client.email }}</td>
+                                <td>{{ client.address or "-" }}</td>
+                                <td>{{ client.phone or "-" }}</td>
+                                <td>
+                                    <div class="action-row">
+
+                                        <!-- Edit Form (inline) -->
+                                        <button class="btn btn-secondary btn-sm"
+                                            onclick="toggleEdit({{ client.id }})">
+                                            Edit
+                                        </button>
+
+                                        <form action="/clients/delete/{{ client.id }}"
+                                            method="POST"
+                                            onsubmit="return confirm('Delete {{ client.name }}?')">
+                                            <button type="submit"
+                                                class="btn btn-danger btn-sm">
+                                                Delete
+                                            </button>
+                                        </form>
+
+                                    </div>
+
+                                    <!-- Edit Row (hidden by default) -->
+                                    <form id="edit-{{ client.id }}"
+                                        action="/clients/edit/{{ client.id }}"
+                                        method="POST"
+                                        class="edit-form hidden">
+                                        <input type="text" name="name"
+                                            value="{{ client.name }}" required>
+                                        <input type="email" name="email"
+                                            value="{{ client.email }}" required>
+                                        <input type="text" name="address"
+                                            value="{{ client.address or '' }}">
+                                        <input type="text" name="phone"
+                                            value="{{ client.phone or '' }}">
+                                        <button type="submit"
+                                            class="btn btn-primary btn-sm">
+                                            Save
+                                        </button>
+                                        <button type="button"
+                                            class="btn btn-secondary btn-sm"
+                                            onclick="toggleEdit({{ client.id }})">
+                                            Cancel
+                                        </button>
+                                    </form>
+
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <p>No clients added yet. Add one above to get started.</p>
+                </div>
+            {% endif %}
+
+        </section>
+
+    </main>
+
+    <script>
+        function toggleEdit(clientId) {
+            const form = document.getElementById(`edit-${clientId}`);
+            form.classList.toggle("hidden");
+        }
+    </script>
+
+</body>
+</html>

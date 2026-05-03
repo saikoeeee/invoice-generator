@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div>
+                <h1>{{ config.BUSINESS_NAME }}</h1>
+                <p>Invoice Manager</p>
+            </div>
+            <nav>
+                <a href="/" class="nav-link active">Dashboard</a>
+                <a href="/clients" class="nav-link">Clients</a>
+                <a href="/invoices/create" class="btn btn-primary">+ New Invoice</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <span class="summary-label">Total Invoices</span>
+                <span class="summary-value">{{ total_invoices }}</span>
+            </div>
+            <div class="summary-card paid">
+                <span class="summary-label">Paid</span>
+                <span class="summary-value">{{ total_paid }}</span>
+            </div>
+            <div class="summary-card unpaid">
+                <span class="summary-label">Unpaid</span>
+                <span class="summary-value">{{ total_unpaid }}</span>
+            </div>
+            <div class="summary-card overdue">
+                <span class="summary-label">Overdue</span>
+                <span class="summary-value">{{ total_overdue }}</span>
+            </div>
+        </div>
+
+        <!-- Invoice List -->
+        <section class="card">
+            <h2>All Invoices</h2>
+
+            {% if invoices %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice No</th>
+                            <th>Client</th>
+                            <th>Issue Date</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                            <tr>
+                                <td>
+                                    <a href="/invoices/{{ invoice.id }}" class="invoice-link">
+                                        {{ invoice.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>{{ invoice.client_name }}</td>
+                                <td>{{ invoice.issue_date }}</td>
+                                <td>{{ invoice.due_date }}</td>
+                                <td>
+                                    <span class="badge badge-{{ invoice.status }}">
+                                        {{ invoice.status.upper() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-row">
+                                        <a href="/invoices/{{ invoice.id }}"
+                                            class="btn btn-secondary btn-sm">
+                                            View
+                                        </a>
+                                        <a href="/invoices/{{ invoice.id }}/download"
+                                            class="btn btn-secondary btn-sm">
+                                            PDF
+                                        </a>
+                                        <form action="/invoices/{{ invoice.id }}/delete"
+                                            method="POST"
+                                            onsubmit="return confirm('Delete {{ invoice.invoice_number }}?')">
+                                            <button type="submit"
+                                                class="btn btn-danger btn-sm">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <p>No invoices yet.</p>
+                    <a href="/invoices/create" class="btn btn-primary">
+                        Create your first invoice
+                    </a>
+                </div>
+            {% endif %}
+
+        </section>
+
+    </main>
+
+</body>
+</html>

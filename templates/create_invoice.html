@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Invoice - Invoice Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div>
+                <h1>{{ config.BUSINESS_NAME }}</h1>
+                <p>Invoice Manager</p>
+            </div>
+            <nav>
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/clients" class="nav-link">Clients</a>
+                <a href="/invoices/create" class="btn btn-primary">+ New Invoice</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="/invoices/create" method="POST">
+
+            <!-- Invoice Details -->
+            <section class="card">
+                <h2>Invoice Details</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="client_id">Client</label>
+                        <select id="client_id" name="client_id" required>
+                            <option value="">Select a client...</option>
+                            {% for client in clients %}
+                                <option value="{{ client.id }}">{{ client.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="issue_date">Issue Date</label>
+                        <input type="date" id="issue_date" name="issue_date"
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label for="due_date">Due Date</label>
+                        <input type="date" id="due_date" name="due_date"
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tax_rate">Tax Rate (%)</label>
+                        <input type="number" id="tax_rate" name="tax_rate"
+                            value="{{ default_tax }}" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="discount">Discount (%)</label>
+                        <input type="number" id="discount" name="discount"
+                            value="0" step="0.1" min="0" max="100">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Line Items -->
+            <section class="card">
+                <h2>Line Items</h2>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Quantity</th>
+                            <th>Unit Price ($)</th>
+                            <th>Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-body">
+                        <tr class="item-row">
+                            <td>
+                                <input type="text" name="description[]"
+                                    placeholder="e.g. Web Development"
+                                    required>
+                            </td>
+                            <td>
+                                <input type="number" name="quantity[]"
+                                    placeholder="1" min="0.01"
+                                    step="0.01" value="1"
+                                    oninput="updateAmount(this)" required>
+                            </td>
+                            <td>
+                                <input type="number" name="unit_price[]"
+                                    placeholder="0.00" min="0"
+                                    step="0.01" value=""
+                                    oninput="updateAmount(this)" required>
+                            </td>
+                            <td class="amount-cell">$0.00</td>
+                            <td>
+                                <button type="button"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="removeRow(this)">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="items-footer">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="addRow()">
+                        + Add Item
+                    </button>
+                    <div class="running-total">
+                        Subtotal: <strong id="subtotal">$0.00</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notes -->
+            <section class="card">
+                <h2>Notes</h2>
+                <div class="form-group">
+                    <textarea name="notes" rows="3"
+                        placeholder="e.g. Payment due within 30 days. Bank transfer preferred.">
+                    </textarea>
+                </div>
+            </section>
+
+            <div class="form-actions">
+                <a href="/" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    Create Invoice and Generate PDF
+                </button>
+            </div>
+
+        </form>
+
+    </main>
+
+    <script>
+        function updateAmount(input) {
+            const row = input.closest(".item-row");
+            const qty = parseFloat(row.querySelector("[name='quantity[]']").value) || 0;
+            const price = parseFloat(row.querySelector("[name='unit_price[]']").value) || 0;
+            row.querySelector(".amount-cell").textContent = `$${(qty * price).toFixed(2)}`;
+            updateSubtotal();
+        }
+
+        function updateSubtotal() {
+            let subtotal = 0;
+            document.querySelectorAll(".item-row").forEach(row => {
+                const qty = parseFloat(row.querySelector("[name='quantity[]']").value) || 0;
+                const price = parseFloat(row.querySelector("[name='unit_price[]']").value) || 0;
+                subtotal += qty * price;
+            });
+            document.getElementById("subtotal").textContent = `$${subtotal.toFixed(2)}`;
+        }
+
+        function addRow() {
+            const tbody = document.getElementById("items-body");
+            const newRow = tbody.rows[0].cloneNode(true);
+            newRow.querySelectorAll("input").forEach(input => input.value = "");
+            newRow.querySelector("[name='quantity[]']").value = "1";
+            newRow.querySelector(".amount-cell").textContent = "$0.00";
+            tbody.appendChild(newRow);
+        }
+
+        function removeRow(button) {
+            const tbody = document.getElementById("items-body");
+            if (tbody.rows.length > 1) {
+                button.closest(".item-row").remove();
+                updateSubtotal();
+            }
+        }
+
+        // Set today's date as default issue date
+        const today = new Date().toISOString().split("T")[0];
+        document.getElementById("issue_date").value = today;
+    </script>
+
+</body>
+</html>
