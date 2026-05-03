@@ -214,6 +214,8 @@ def delete_invoice(invoice_id):
     return redirect(url_for("index"))
 
 
+# Initialise database on startup (works with both gunicorn and direct run)
+database.init_db()
+
 if __name__ == "__main__":
-    database.init_db()
     app.run(debug=False)

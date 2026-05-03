@@ -1,1 +1,1 @@
-web: gunicorn app:apptype nul > runtime.txt
+web: gunicorn app:app --bind 0.0.0.0:$PORT
